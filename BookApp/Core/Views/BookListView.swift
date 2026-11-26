@@ -25,6 +25,7 @@ private struct ShelfGridContentView: View {
     let cellHeight: Double
     let woodHeight: Double
     let rowWidth: Double
+    var onSelectBook: ((UUID) -> Void)? = nil
 
     @Environment(AppConfig.self) private var config
     @Environment(DueDatePlugin.self) private var dueDates
@@ -168,6 +169,24 @@ private struct ShelfGridContentView: View {
                 toggleRead: nil
             )
         } else {
+#if os(Windows)
+            BookRowView(
+                book: book,
+                cellWidth: cellWidth,
+                cellHeight: cellHeight,
+                dueDate: dueDates.dueDate(for: book.id),
+                showDueDates: config.showDueDates,
+                showPriorities: config.showPriorities,
+                toggleRead: { viewModel.toggleRead(id: book.id) },
+                onSelect: { onSelectBook?(book.id) }
+            )
+            .contextMenu {
+                Button("Eliminar libro") {
+                    viewModel.removeBook(id: book.id)
+                }
+            }
+            .shelfFrame(width: cellWidth, height: cellHeight)
+#else
             NavigationLink(destination: BookDetailView(book: binding(for: book), dueDate: dueDateBinding(for: book))) {
                 BookRowView(
                     book: book,
@@ -186,6 +205,7 @@ private struct ShelfGridContentView: View {
             }
             .buttonStyle(.plain)
             .shelfFrame(width: cellWidth, height: cellHeight)
+#endif
         }
     }
 
@@ -210,7 +230,9 @@ struct BookListView: View {
     @State private var showingAddBook = false
     @State private var isReordering = false
 #if os(Windows)
+    @State private var selectedBookID: UUID?
     @State private var containerWidth: Double = 600
+    @Environment(DueDatePlugin.self) private var dueDates
 #else
     @State private var containerWidth: Double = 650
 #endif
@@ -249,40 +271,82 @@ struct BookListView: View {
         let currentCellHeight = cellHeight
         let currentWoodHeight = woodHeight
         let currentRowWidth = rowTotalWidth
-        NavigationStack {
 #if os(Windows)
-            ScrollView {
-                ShelfGridContentView(
-                    viewModel: viewModel,
-                    isReordering: isReordering,
-                    cellWidth: currentCellWidth,
-                    cellHeight: currentCellHeight,
-                    woodHeight: currentWoodHeight,
-                    rowWidth: currentRowWidth
-                )
-            }
-            .background(config.shelfBackgroundColor)
-            .toolbar {
-                Button(isReordering ? "Listo" : "Reordenar") {
-                    isReordering.toggle()
-                }
-                Button("Añadir libro") {
-                    showingAddBook = true
-                }
-            }
-            .sheet(isPresented: $showingAddBook) {
-                AddBookView(
-                    onCreate: { newBook in
-                        showingAddBook = false
-                        viewModel.addBook(newBook)
-                    },
-                    onCancel: {
-                        showingAddBook = false
+        // En Windows evitamos NavigationStack + .toolbar dentro de un ViewHost que se reconstruye
+        // al cambiar @State (isReordering / books), gestionando la barra superior y el detalle directamente.
+        VStack(alignment: .leading, spacing: 0) {
+            if let bookID = selectedBookID, let selectedBook = viewModel.book(id: bookID) {
+                HStack(spacing: 12) {
+                    Button("← Volver") {
+                        selectedBookID = nil
                     }
+                    Text(selectedBook.title)
+                        .font(.headline)
+                    Spacer()
+                    Button("Eliminar") {
+                        selectedBookID = nil
+                        viewModel.removeBook(id: bookID)
+                    }
+                }
+                .padding(10)
+
+                Divider()
+
+                BookDetailView(
+                    book: Binding(
+                        get: { viewModel.book(id: bookID) ?? selectedBook },
+                        set: { viewModel.updateBook($0) }
+                    ),
+                    dueDate: Binding(
+                        get: { dueDates.dueDate(for: bookID) },
+                        set: { dueDates.setDueDate($0, for: bookID) }
+                    )
                 )
+            } else {
+                HStack(spacing: 8) {
+                    Text("Libros")
+                        .font(.headline)
+                    Spacer()
+                    Button(isReordering ? "Listo" : "Reordenar") {
+                        isReordering.toggle()
+                    }
+                    Button("Añadir libro") {
+                        showingAddBook = true
+                    }
+                }
+                .padding(10)
+
+                Divider()
+
+                ScrollView {
+                    ShelfGridContentView(
+                        viewModel: viewModel,
+                        isReordering: isReordering,
+                        cellWidth: currentCellWidth,
+                        cellHeight: currentCellHeight,
+                        woodHeight: currentWoodHeight,
+                        rowWidth: currentRowWidth,
+                        onSelectBook: { id in
+                            selectedBookID = id
+                        }
+                    )
+                }
+                .background(config.shelfBackgroundColor)
+                .sheet(isPresented: $showingAddBook) {
+                    AddBookView(
+                        onCreate: { newBook in
+                            showingAddBook = false
+                            viewModel.addBook(newBook)
+                        },
+                        onCancel: {
+                            showingAddBook = false
+                        }
+                    )
+                }
             }
-            .navigationTitle("Libros")
+        }
 #else
+        NavigationStack {
             ZStack(alignment: .topLeading) {
                 // Sensor de anchura sin vistas hijas que dependan de @Environment,
                 // compatible tanto con GTK4 (SwiftOpenUI) como con macOS/iOS.
@@ -326,8 +390,8 @@ struct BookListView: View {
                 )
             }
             .navigationTitle("Libros")
-#endif
         }
+#endif
     }
 
     private func updateWidthIfNeeded(_ measured: Double) {

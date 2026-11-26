@@ -23,8 +23,8 @@ private struct ColorWheelCanvasView: View {
     @State private var saturation: Double
 
 #if os(Windows)
-    private let wheelSize: Double = 140
-    private let wheelRadius: Double = 60
+    private let wheelSize: Double = 136
+    private let wheelRadius: Double = 58
 #else
     private let wheelSize: Double = 220
     private let wheelRadius: Double = 96
@@ -255,23 +255,10 @@ struct RGBColorWheelPickerView: View {
     var body: some View {
         let rgb = currentRGB
 #if os(Windows)
-        // En Win32, win32PresentSheet crea ventanas de 400x300 pt: compactamos el contenido
-        // para que el deslizador de brillo y los botones Cancelar/Guardar no queden cortados.
-        VStack(spacing: 8) {
-            HStack(spacing: 10) {
-                Rectangle()
-                    .fill(currentColor)
-                    .frame(width: 28, height: 28)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.headline)
-                    Text("RGB(\(Int((rgb.r * 255).rounded())), \(Int((rgb.g * 255).rounded())), \(Int((rgb.b * 255).rounded())))")
-                        .bookCaption()
-                }
-                Spacer()
-            }
-
+        // En Win32, win32PresentSheet crea una ventana exterior de 400x300 pt (~384x255 útiles).
+        // Usamos disposición horizontal (rueda a la izquierda, brillo y botones a la derecha)
+        // para que Cancelar y Guardar queden siempre visibles.
+        HStack(alignment: .center, spacing: 14) {
             ColorWheelCanvasView(
                 brightness: brightness,
                 initialHue: hue,
@@ -282,27 +269,44 @@ struct RGBColorWheelPickerView: View {
                 }
             )
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    Text("Brillo")
-                        .bookCaption()
-                    Spacer()
-                    Text("\(Int((brightness * 100).rounded()))%")
-                        .bookCaption()
-                }
-                Slider(value: $brightness, in: 0.05...1.0, step: 0.01)
-            }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Rectangle()
+                        .fill(currentColor)
+                        .frame(width: 24, height: 24)
 
-            HStack {
-                Button("Cancelar") {
-                    onCancel()
-                    dismiss()
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(title)
+                            .font(.headline)
+                        Text("RGB(\(Int((rgb.r * 255).rounded())), \(Int((rgb.g * 255).rounded())), \(Int((rgb.b * 255).rounded())))")
+                            .bookCaption()
+                    }
                 }
-                Spacer()
-                Button("Guardar") {
-                    let finalRGB = currentRGB
-                    onSave(finalRGB.r, finalRGB.g, finalRGB.b)
-                    dismiss()
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text("Brillo")
+                            .bookCaption()
+                        Spacer()
+                        Text("\(Int((brightness * 100).rounded()))%")
+                            .bookCaption()
+                    }
+                    Slider(value: $brightness, in: 0.05...1.0, step: 0.01)
+                }
+
+                Spacer(minLength: 0)
+
+                HStack {
+                    Button("Cancelar") {
+                        onCancel()
+                        dismiss()
+                    }
+                    Spacer()
+                    Button("Guardar") {
+                        let finalRGB = currentRGB
+                        onSave(finalRGB.r, finalRGB.g, finalRGB.b)
+                        dismiss()
+                    }
                 }
             }
         }

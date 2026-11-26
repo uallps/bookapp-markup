@@ -11,6 +11,8 @@ struct BookRowView: View {
     let showPriorities: Bool
     /// En modo edición es `nil`: no se muestra el botón de marcar para poder arrastrar el libro.
     let toggleRead: (() -> Void)?
+    /// Acción al pulsar para abrir el detalle del libro (usado en Windows para evitar NavigationLink anidado).
+    var onSelect: (() -> Void)? = nil
 
     var body: some View {
         let maxCardWidth = max(24.0, cellWidth - 2.0)
@@ -57,6 +59,11 @@ struct BookRowView: View {
                     .lineLimit(1)
             }
 #endif
+            if let onSelect {
+                Button("Ver", action: onSelect)
+                    .buttonStyle(.plain)
+                    .foregroundColor(.white)
+            }
         }
         .padding(.bottom, 6)
         .shelfFrame(width: cardWidth, height: cellHeight)

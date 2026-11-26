@@ -3,8 +3,9 @@ import Observation
 
 @Observable
 final class BookListViewModel {
-    static let booksPerShelf = 30
-    static let minShelves = 6
+    /// Dimensiones fijas de la estantería (siempre el mismo número de celdas en todos los sistemas).
+    static let booksPerShelf = 10
+    static let fixedShelves = 4
 
     /// Cada cambio en la lista (marcar, añadir, borrar, mover o editar en el detalle) se guarda.
     var books: [Book] = [
@@ -78,14 +79,13 @@ final class BookListViewModel {
         books[index] = book
     }
 
-    /// Mueve libremente un libro a cualquier celda `(toRow, toCol)` de la cuadrícula 2D.
+    /// Mueve libremente un libro a cualquier celda `(toRow, toCol)` dentro de la cuadrícula fija.
     /// Si la celda destino está vacía, el libro ocupa ese hueco dejando libre el anterior;
     /// si había otro libro en esa celda, intercambian sus coordenadas.
-    func moveBook(id: UUID, toRow: Int, toCol: Int, maxColumns: Int = booksPerShelf) {
+    func moveBook(id: UUID, toRow: Int, toCol: Int) {
         guard let index = books.firstIndex(where: { $0.id == id }) else { return }
-        let allowedCols = max(1, maxColumns)
-        let targetRow = max(0, toRow)
-        let targetCol = max(0, min(allowedCols - 1, toCol))
+        let targetRow = max(0, min(Self.fixedShelves - 1, toRow))
+        let targetCol = max(0, min(Self.booksPerShelf - 1, toCol))
         let oldRow = books[index].shelfRow ?? 0
         let oldCol = books[index].shelfCol ?? 0
         guard oldRow != targetRow || oldCol != targetCol else { return }
@@ -100,29 +100,29 @@ final class BookListViewModel {
         books = updated
     }
 
-    /// Busca el primer hueco libre `(row, col)` recorriendo las baldas de izquierda a derecha.
+    /// Busca el primer hueco libre `(row, col)` dentro de la cuadrícula fija.
     private func firstFreePosition(in currentBooks: [Book]) -> (row: Int, col: Int) {
         let occupied = Set(currentBooks.compactMap { b -> String? in
             guard let r = b.shelfRow, let c = b.shelfCol else { return nil }
             return "\(r):\(c)"
         })
-        var row = 0
-        while true {
+        for row in 0..<Self.fixedShelves {
             for col in 0..<Self.booksPerShelf {
                 if !occupied.contains("\(row):\(col)") {
                     return (row, col)
                 }
             }
-            row += 1
         }
+        return (Self.fixedShelves - 1, Self.booksPerShelf - 1)
     }
 
-    /// Garantiza que libros antiguos (sin coordenadas guardadas o duplicadas) tengan celda propia.
+    /// Garantiza que todos los libros tengan una celda única dentro de las dimensiones fijas.
     private static func assignMissingPositions(_ list: inout [Book]) {
         var occupied = Set<String>()
         for i in list.indices {
             if let r = list[i].shelfRow, let c = list[i].shelfCol,
-               r >= 0, c >= 0,
+               r >= 0, r < fixedShelves,
+               c >= 0, c < booksPerShelf,
                !occupied.contains("\(r):\(c)") {
                 occupied.insert("\(r):\(c)")
             } else {
@@ -133,16 +133,18 @@ final class BookListViewModel {
         var row = 0
         var col = 0
         for i in list.indices where list[i].shelfRow == nil {
-            while occupied.contains("\(row):\(col)") {
+            while row < fixedShelves && occupied.contains("\(row):\(col)") {
                 col += 1
                 if col >= booksPerShelf {
                     col = 0
                     row += 1
                 }
             }
-            list[i].shelfRow = row
-            list[i].shelfCol = col
-            occupied.insert("\(row):\(col)")
+            let clampedRow = min(fixedShelves - 1, row)
+            let clampedCol = min(booksPerShelf - 1, col)
+            list[i].shelfRow = clampedRow
+            list[i].shelfCol = clampedCol
+            occupied.insert("\(clampedRow):\(clampedCol)")
         }
     }
 

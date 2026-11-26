@@ -16,6 +16,8 @@ extension App {
         GTK4Backend().run(Self.self)
         #elseif canImport(BackendWin32)
         Win32Backend().run(Self.self)
+        #else
+        print("En macOS abre BookApp.xcodeproj en Xcode (no Package.swift) para ejecutar la app con el SwiftUI de Apple.")
         #endif
     }
 }

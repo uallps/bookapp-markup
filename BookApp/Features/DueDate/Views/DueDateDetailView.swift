@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 /// La fecha de vencimiento en el detalle: un interruptor para ponerla o quitarla

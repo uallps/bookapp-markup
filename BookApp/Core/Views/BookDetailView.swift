@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 /// Detalle de un libro. Recibe un enlace (@Binding) al libro de la lista:

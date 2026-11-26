@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 /// Formulario modal para crear un libro nuevo.

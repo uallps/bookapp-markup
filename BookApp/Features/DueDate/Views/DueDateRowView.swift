@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 /// La fecha de vencimiento en la fila de un libro (nada, si no tiene).

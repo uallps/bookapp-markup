@@ -9,7 +9,7 @@ import BackendGTK4
 import BackendWin32
 #endif
 
-// Permite `@main struct TaskApp: App`, igual que en Apple.
+// Permite `@main struct BookApp: App`, igual que en Apple.
 extension App {
     public static func main() {
         #if canImport(BackendGTK4)

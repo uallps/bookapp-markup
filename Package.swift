@@ -1,6 +1,6 @@
 // swift-tools-version: 6.2
-// Paquete para Linux y Windows. Compila la MISMA carpeta TaskApp/ que usa Xcode
-// (en Mac se abre TaskApp.xcodeproj y se usa el SwiftUI de Apple).
+// Paquete para Linux y Windows. Compila la MISMA carpeta BookApp/ que usa Xcode
+// (en Mac se abre BookApp.xcodeproj y se usa el SwiftUI de Apple).
 import PackageDescription
 
 #if os(Linux)
@@ -12,11 +12,11 @@ let backend: Target.Dependency? = nil
 #endif
 
 let package = Package(
-    name: "TaskApp",
+    name: "BookApp",
     // Productos de la línea: cada trait activo es una variable de compilación (#if Prioridades).
-    // En Xcode, el mismo papel lo cumple el target «TaskApp Prioridades».
+    // En Xcode, el mismo papel lo cumple el target «BookApp Prioridades».
     traits: [
-        .trait(name: "Prioridades", description: "Característica opcional: prioridad de la tarea"),
+        .trait(name: "Prioridades", description: "Característica opcional: prioridad del libro"),
     ],
     dependencies: [
         .package(url: "https://github.com/uallps/SwiftOpenUI.git", branch: "uallps"),
@@ -30,9 +30,9 @@ let package = Package(
         ),
         // Mismos ajustes de Swift que el proyecto de Xcode.
         .executableTarget(
-            name: "TaskApp",
+            name: "BookApp",
             dependencies: ["SwiftUI"],
-            path: "TaskApp",
+            path: "BookApp",
             exclude: ["Assets.xcassets"],
             swiftSettings: [
                 .swiftLanguageMode(.v5),

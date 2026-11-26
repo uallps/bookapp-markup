@@ -71,9 +71,13 @@ struct SettingsView: View {
                     title: "Color de las estanterías",
                     initialRGB: (config.shelfWoodRed, config.shelfWoodGreen, config.shelfWoodBlue),
                     onSave: { r, g, b in
+                        activeColorPicker = nil
                         config.shelfWoodRed = r
                         config.shelfWoodGreen = g
                         config.shelfWoodBlue = b
+                    },
+                    onCancel: {
+                        activeColorPicker = nil
                     }
                 )
             case .shelfBackground:
@@ -81,9 +85,13 @@ struct SettingsView: View {
                     title: "Color del fondo",
                     initialRGB: (config.shelfBgRed, config.shelfBgGreen, config.shelfBgBlue),
                     onSave: { r, g, b in
+                        activeColorPicker = nil
                         config.shelfBgRed = r
                         config.shelfBgGreen = g
                         config.shelfBgBlue = b
+                    },
+                    onCancel: {
+                        activeColorPicker = nil
                     }
                 )
             }

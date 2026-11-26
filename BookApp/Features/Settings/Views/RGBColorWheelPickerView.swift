@@ -41,10 +41,42 @@ private struct ColorWheelCanvasView: View {
 
     var body: some View {
 #if !canImport(SwiftOpenUI)
-        Canvas { context, _ in
-            drawAppleWheel(in: &context)
+        let angle = hue * 2.0 * .pi
+        let offsetX = cos(angle) * saturation * wheelRadius
+        let offsetY = sin(angle) * saturation * wheelRadius
+        let selected = RGBColorWheelPickerView.hsvToRGB(h: hue, s: saturation, v: brightness)
+        let hueColors: [Color] = (0...12).map { i in
+            let rgb = RGBColorWheelPickerView.hsvToRGB(h: Double(i) / 12.0, s: 1.0, v: brightness)
+            return Color(red: rgb.r, green: rgb.g, blue: rgb.b)
         }
-        .shelfFrame(width: wheelSize, height: wheelSize)
+        let centerColor = Color(red: brightness, green: brightness, blue: brightness)
+
+        ZStack {
+            Circle()
+                .fill(AngularGradient(colors: hueColors, center: .center))
+                .overlay(
+                    Circle().fill(
+                        RadialGradient(
+                            colors: [centerColor, centerColor.opacity(0.0)],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: CGFloat(wheelRadius)
+                        )
+                    )
+                )
+                .overlay(
+                    Circle().stroke(Color.black.opacity(0.22), lineWidth: 1.5)
+                )
+                .frame(width: CGFloat(wheelRadius * 2), height: CGFloat(wheelRadius * 2))
+
+            Circle()
+                .fill(Color(red: selected.r, green: selected.g, blue: selected.b))
+                .frame(width: 18, height: 18)
+                .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                .overlay(Circle().stroke(Color.black.opacity(0.45), lineWidth: 1))
+                .offset(x: CGFloat(offsetX), y: CGFloat(offsetY))
+        }
+        .frame(width: CGFloat(wheelSize), height: CGFloat(wheelSize))
         .contentShape(Circle())
         .gesture(
             DragGesture(minimumDistance: 0)
@@ -89,92 +121,72 @@ private struct ColorWheelCanvasView: View {
         }
     }
 
-#if !canImport(SwiftOpenUI)
-    private func drawAppleWheel(in context: inout GraphicsContext) {
-        let cx = wheelSize / 2.0
-        let cy = wheelSize / 2.0
-        let step = 4.0
-
-        var dy = -wheelRadius
-        while dy <= wheelRadius {
-            var dx = -wheelRadius
-            while dx <= wheelRadius {
-                let dist = hypot(dx, dy)
-                if dist <= wheelRadius {
-                    var h = atan2(dy, dx) / (2.0 * .pi)
-                    if h < 0 { h += 1.0 }
-                    let s = dist / wheelRadius
-                    let rgb = RGBColorWheelPickerView.hsvToRGB(h: h, s: s, v: brightness)
-                    let rect = CGRect(x: cx + dx - 2.0, y: cy + dy - 2.0, width: step + 0.8, height: step + 0.8)
-                    context.fill(
-                        Path(rect),
-                        with: GraphicsContext.Shading.color(Color(red: rgb.r, green: rgb.g, blue: rgb.b))
-                    )
-                }
-                dx += step
-            }
-            dy += step
-        }
-
-        let borderRect = CGRect(x: cx - wheelRadius, y: cy - wheelRadius, width: wheelRadius * 2, height: wheelRadius * 2)
-        context.stroke(
-            Path(ellipseIn: borderRect),
-            with: GraphicsContext.Shading.color(Color.black.opacity(0.25)),
-            lineWidth: 2
-        )
-
-        let angle = hue * 2.0 * .pi
-        let sx = cx + cos(angle) * saturation * wheelRadius
-        let sy = cy + sin(angle) * saturation * wheelRadius
-        let selected = RGBColorWheelPickerView.hsvToRGB(h: hue, s: saturation, v: brightness)
-        let handleRect = CGRect(x: sx - 9, y: sy - 9, width: 18, height: 18)
-
-        context.fill(
-            Path(ellipseIn: handleRect),
-            with: GraphicsContext.Shading.color(Color(red: selected.r, green: selected.g, blue: selected.b))
-        )
-        context.stroke(
-            Path(ellipseIn: handleRect),
-            with: GraphicsContext.Shading.color(Color.white),
-            lineWidth: 3
-        )
-        context.stroke(
-            Path(ellipseIn: CGRect(x: sx - 10.5, y: sy - 10.5, width: 21, height: 21)),
-            with: GraphicsContext.Shading.color(Color.black.opacity(0.45)),
-            lineWidth: 1
-        )
-    }
-#else
+#if canImport(SwiftOpenUI)
     private func drawOpenUIWheel(in context: DrawingContext) {
 #if canImport(BackendGTK4) || canImport(BackendWin32)
         let cx = wheelSize / 2.0
         let cy = wheelSize / 2.0
-        let step = 4.0
+        let angleSteps = 120
+        let ringSteps = 14
+        let dAngle = (2.0 * .pi) / Double(angleSteps)
+        let overlap = 0.015
 
-        var dy = -wheelRadius
-        while dy <= wheelRadius {
-            var dx = -wheelRadius
-            while dx <= wheelRadius {
-                let dist = hypot(dx, dy)
-                if dist <= wheelRadius {
-                    var h = atan2(dy, dx) / (2.0 * .pi)
-                    if h < 0 { h += 1.0 }
-                    let s = dist / wheelRadius
-                    let rgb = RGBColorWheelPickerView.hsvToRGB(h: h, s: s, v: brightness)
-                    context.setColor(r: rgb.r, g: rgb.g, b: rgb.b, a: 1.0)
-                    context.rectangle(x: cx + dx - 2.0, y: cy + dy - 2.0, width: step + 0.8, height: step + 0.8)
-                    context.fill()
+        // Dibuja la rueda mediante sectores polares con arco exterior curvo (sin bordes pixelados)
+        for rIndex in (0..<ringSteps).reversed() {
+            let rOuter = wheelRadius * Double(rIndex + 1) / Double(ringSteps)
+            let rInner = wheelRadius * Double(rIndex) / Double(ringSteps)
+            let s = (Double(rIndex) + 0.5) / Double(ringSteps)
+
+            for aIndex in 0..<angleSteps {
+                let a0 = Double(aIndex) * dAngle
+                let a1 = a0 + dAngle + overlap
+                let h = (Double(aIndex) + 0.5) / Double(angleSteps)
+                let rgb = RGBColorWheelPickerView.hsvToRGB(h: h, s: s, v: brightness)
+
+                var path = Path()
+                if rIndex == 0 {
+                    path.move(to: CGPoint(x: cx, y: cy))
+                    path.addLine(to: CGPoint(x: cx + cos(a0) * rOuter, y: cy + sin(a0) * rOuter))
+                    path.addArc(
+                        center: CGPoint(x: cx, y: cy),
+                        radius: rOuter,
+                        startAngle: a0,
+                        endAngle: a1,
+                        clockwise: false
+                    )
+                    path.closeSubpath()
+                } else {
+                    path.move(to: CGPoint(x: cx + cos(a0) * rInner, y: cy + sin(a0) * rInner))
+                    path.addLine(to: CGPoint(x: cx + cos(a0) * rOuter, y: cy + sin(a0) * rOuter))
+                    path.addArc(
+                        center: CGPoint(x: cx, y: cy),
+                        radius: rOuter,
+                        startAngle: a0,
+                        endAngle: a1,
+                        clockwise: false
+                    )
+                    path.addLine(to: CGPoint(x: cx + cos(a1) * rInner, y: cy + sin(a1) * rInner))
+                    path.addArc(
+                        center: CGPoint(x: cx, y: cy),
+                        radius: rInner,
+                        startAngle: a1,
+                        endAngle: a0,
+                        clockwise: true
+                    )
+                    path.closeSubpath()
                 }
-                dx += step
+
+                context.fill(path, with: .color(Color(red: rgb.r, green: rgb.g, blue: rgb.b)))
             }
-            dy += step
         }
 
+        // Borde exterior circular limpio
         context.setColor(r: 0, g: 0, b: 0, a: 0.25)
-        context.setLineWidth(2)
+        context.setLineWidth(1.5)
         context.arc(centerX: cx, centerY: cy, radius: wheelRadius)
         context.stroke()
 
+        // Indicador circular del color seleccionado
         let angle = hue * 2.0 * .pi
         let sx = cx + cos(angle) * saturation * wheelRadius
         let sy = cy + sin(angle) * saturation * wheelRadius
@@ -205,6 +217,7 @@ struct RGBColorWheelPickerView: View {
 
     let title: String
     let onSave: (Double, Double, Double) -> Void
+    var onCancel: () -> Void = {}
 
     @State private var hue: Double
     @State private var saturation: Double
@@ -213,10 +226,12 @@ struct RGBColorWheelPickerView: View {
     init(
         title: String,
         initialRGB: (r: Double, g: Double, b: Double),
-        onSave: @escaping (Double, Double, Double) -> Void
+        onSave: @escaping (Double, Double, Double) -> Void,
+        onCancel: @escaping () -> Void = {}
     ) {
         self.title = title
         self.onSave = onSave
+        self.onCancel = onCancel
         let hsv = Self.rgbToHSV(r: initialRGB.r, g: initialRGB.g, b: initialRGB.b)
         _hue = State(wrappedValue: hsv.h)
         _saturation = State(wrappedValue: hsv.s)
@@ -273,6 +288,7 @@ struct RGBColorWheelPickerView: View {
 
             HStack {
                 Button("Cancelar") {
+                    onCancel()
                     dismiss()
                 }
                 Spacer()

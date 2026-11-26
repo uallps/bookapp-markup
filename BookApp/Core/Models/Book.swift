@@ -24,4 +24,13 @@ struct Book: Identifiable, Codable {
     /// Posición libre en la cuadrícula 2D de la estantería (balda y columna).
     var shelfRow: Int?
     var shelfCol: Int?
+
+    /// Factor de grosor visual del lomo `[0.54, 0.96]` según el número de páginas.
+    var spineThicknessFactor: Double {
+        guard let pages = totalPages, pages > 0 else { return 0.72 }
+        let minPages = 80.0
+        let maxPages = 1000.0
+        let normalized = max(0.0, min(1.0, (Double(pages) - minPages) / (maxPages - minPages)))
+        return 0.54 + normalized * (0.96 - 0.54)
+    }
 }

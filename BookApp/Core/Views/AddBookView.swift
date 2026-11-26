@@ -11,6 +11,7 @@ struct AddBookView: View {
     @State private var coverColor: BookColor = .blue
 
     let onCreate: (Book) -> Void
+    var onCancel: () -> Void = {}
 
     private var trimmedTitle: String {
         title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -36,6 +37,7 @@ struct AddBookView: View {
             .navigationTitle("Nuevo libro")
             .toolbar {
                 Button("Cancelar") {
+                    onCancel()
                     dismiss()
                 }
                 Button("Guardar") {

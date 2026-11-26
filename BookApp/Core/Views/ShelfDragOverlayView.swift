@@ -173,6 +173,13 @@ struct ShelfDragOverlayView: View {
 
     // MARK: - Dibujo en Canvas
 
+    private func bookThicknessGeometry(for book: Book) -> (width: Double, xOffset: Double) {
+        let maxBookWidth = max(24.0, slotWidth - 2.0)
+        let bookWidth = min(maxBookWidth, max(24.0, (slotWidth * book.spineThicknessFactor).rounded()))
+        let xOffset = (slotWidth - bookWidth) / 2.0
+        return (bookWidth, xOffset)
+    }
+
 #if !canImport(SwiftOpenUI)
     private func drawAppleSlotGuides(in context: inout GraphicsContext) {
         let guideColor = GraphicsContext.Shading.color(Color.black.opacity(0.06))
@@ -190,10 +197,11 @@ struct ShelfDragOverlayView: View {
     }
 
     private func drawAppleDragPreview(_ drag: ActiveBookDrag, in context: inout GraphicsContext) {
+        let geom = bookThicknessGeometry(for: drag.book)
         let originRect = CGRect(
-            x: Double(drag.startCol) * colStride,
+            x: Double(drag.startCol) * colStride + geom.xOffset,
             y: Double(drag.startRow) * rowStride,
-            width: slotWidth,
+            width: geom.width,
             height: slotHeight
         )
         // Hueco de origen atenuado
@@ -205,9 +213,9 @@ struct ShelfDragOverlayView: View {
         )
 
         // Previsualización iluminada con bordes brillantes en la celda destino
-        let tx = Double(drag.targetCol) * colStride
+        let tx = Double(drag.targetCol) * colStride + geom.xOffset
         let ty = Double(drag.targetRow) * rowStride
-        let targetRect = CGRect(x: tx, y: ty, width: slotWidth, height: slotHeight)
+        let targetRect = CGRect(x: tx, y: ty, width: geom.width, height: slotHeight)
         let rgb = drag.book.coverColor.rgb
 
         context.fill(
@@ -215,7 +223,7 @@ struct ShelfDragOverlayView: View {
             with: GraphicsContext.Shading.color(Color(red: rgb.r, green: rgb.g, blue: rgb.b).opacity(0.28))
         )
         context.stroke(
-            Path(CGRect(x: tx - 2, y: ty - 2, width: slotWidth + 4, height: slotHeight + 4)),
+            Path(CGRect(x: tx - 2, y: ty - 2, width: geom.width + 4, height: slotHeight + 4)),
             with: GraphicsContext.Shading.color(Color(red: 1.0, green: 0.90, blue: 0.35).opacity(0.45)),
             lineWidth: 6
         )
@@ -225,16 +233,16 @@ struct ShelfDragOverlayView: View {
             lineWidth: 3
         )
         context.stroke(
-            Path(CGRect(x: tx + 1.5, y: ty + 1.5, width: slotWidth - 3, height: slotHeight - 3)),
+            Path(CGRect(x: tx + 1.5, y: ty + 1.5, width: max(2, geom.width - 3), height: slotHeight - 3)),
             with: GraphicsContext.Shading.color(Color.white.opacity(0.95)),
             lineWidth: 1.5
         )
 
         // Libro flotando siguiendo el arrastre
-        let fx = Double(drag.startCol) * colStride + drag.dx
+        let fx = Double(drag.startCol) * colStride + geom.xOffset + drag.dx
         let fy = Double(drag.startRow) * rowStride + drag.dy - 4
-        let shadowRect = CGRect(x: fx + 6, y: fy + 8, width: slotWidth, height: slotHeight)
-        let floatingRect = CGRect(x: fx, y: fy, width: slotWidth, height: slotHeight)
+        let shadowRect = CGRect(x: fx + 6, y: fy + 8, width: geom.width, height: slotHeight)
+        let floatingRect = CGRect(x: fx, y: fy, width: geom.width, height: slotHeight)
 
         context.fill(Path(shadowRect), with: GraphicsContext.Shading.color(Color.black.opacity(0.28)))
         context.fill(
@@ -267,40 +275,41 @@ struct ShelfDragOverlayView: View {
 
     private func drawOpenUIDragPreview(_ drag: ActiveBookDrag, in context: DrawingContext) {
 #if canImport(BackendGTK4) || canImport(BackendWin32)
-        let ox = Double(drag.startCol) * colStride
+        let geom = bookThicknessGeometry(for: drag.book)
+        let ox = Double(drag.startCol) * colStride + geom.xOffset
         let oy = Double(drag.startRow) * rowStride
 
         // 1. Hueco de origen atenuado (el libro se ha levantado de aquí)
         context.setColor(r: backgroundRGB.r, g: backgroundRGB.g, b: backgroundRGB.b, a: 0.82)
-        context.rectangle(x: ox, y: oy, width: slotWidth, height: slotHeight)
+        context.rectangle(x: ox, y: oy, width: geom.width, height: slotHeight)
         context.fill()
 
         // 2. Previsualización con bordes brillantes en la posición destino
-        let tx = Double(drag.targetCol) * colStride
+        let tx = Double(drag.targetCol) * colStride + geom.xOffset
         let ty = Double(drag.targetRow) * rowStride
         let rgb = drag.book.coverColor.rgb
 
         // Relleno translúcido del color del libro en la celda destino
         context.setColor(r: rgb.r, g: rgb.g, b: rgb.b, a: 0.28)
-        context.rectangle(x: tx, y: ty, width: slotWidth, height: slotHeight)
+        context.rectangle(x: tx, y: ty, width: geom.width, height: slotHeight)
         context.fill()
 
         // Halo exterior brillante
         context.setColor(r: 1.0, g: 0.90, b: 0.35, a: 0.45)
         context.setLineWidth(6)
-        context.rectangle(x: tx - 2, y: ty - 2, width: slotWidth + 4, height: slotHeight + 4)
+        context.rectangle(x: tx - 2, y: ty - 2, width: geom.width + 4, height: slotHeight + 4)
         context.stroke()
 
         // Borde dorado luminoso
         context.setColor(r: 1.0, g: 0.96, b: 0.62, a: 0.95)
         context.setLineWidth(3)
-        context.rectangle(x: tx, y: ty, width: slotWidth, height: slotHeight)
+        context.rectangle(x: tx, y: ty, width: geom.width, height: slotHeight)
         context.stroke()
 
         // Filo interior blanco brillante
         context.setColor(r: 1.0, g: 1.0, b: 1.0, a: 0.95)
         context.setLineWidth(1.5)
-        context.rectangle(x: tx + 1.5, y: ty + 1.5, width: slotWidth - 3, height: slotHeight - 3)
+        context.rectangle(x: tx + 1.5, y: ty + 1.5, width: max(2, geom.width - 3), height: slotHeight - 3)
         context.stroke()
 
         // 3. Libro flotando con sombra siguiendo el puntero
@@ -308,11 +317,11 @@ struct ShelfDragOverlayView: View {
         let fy = oy + drag.dy - 4
 
         context.setColor(r: 0.0, g: 0.0, b: 0.0, a: 0.28)
-        context.rectangle(x: fx + 6, y: fy + 8, width: slotWidth, height: slotHeight)
+        context.rectangle(x: fx + 6, y: fy + 8, width: geom.width, height: slotHeight)
         context.fill()
 
         context.setColor(r: rgb.r, g: rgb.g, b: rgb.b, a: 0.94)
-        context.rectangle(x: fx, y: fy, width: slotWidth, height: slotHeight)
+        context.rectangle(x: fx, y: fy, width: geom.width, height: slotHeight)
         context.fill()
 
         // Brillo lateral del lomo levantado
@@ -323,7 +332,7 @@ struct ShelfDragOverlayView: View {
         // Borde brillante alrededor del libro arrastrado
         context.setColor(r: 1.0, g: 1.0, b: 1.0, a: 0.9)
         context.setLineWidth(2)
-        context.rectangle(x: fx, y: fy, width: slotWidth, height: slotHeight)
+        context.rectangle(x: fx, y: fy, width: geom.width, height: slotHeight)
         context.stroke()
 #endif
     }

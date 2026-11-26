@@ -1,14 +1,21 @@
 import Foundation
 import SwiftUI
 
-private struct ShelfCell: Identifiable {
-    let id: Int
-    let book: Book?
+/// Segmento dentro de una balda: un libro real o un bloque compacto de huecos vacíos consecutivos.
+/// Compactar huecos consecutivos evita crear decenas de HWNDs/superficies D2D vacías en Windows.
+private enum ShelfSegmentKind {
+    case book(Book)
+    case gap(count: Int)
+}
+
+private struct ShelfSegment: Identifiable {
+    let id: String
+    let kind: ShelfSegmentKind
 }
 
 private struct ShelfRow: Identifiable {
     let id: Int
-    let cells: [ShelfCell]
+    let segments: [ShelfSegment]
 }
 
 struct BookListView: View {
@@ -30,13 +37,30 @@ struct BookListView: View {
         _viewModel = State(wrappedValue: BookListViewModel(storageProvider: storageProvider))
     }
 
-    /// Cuadrícula bidimensional fija (`4 baldas x 10 columnas = 40 celdas`).
+    /// Cuadrícula bidimensional fija (`4 baldas x 10 columnas`), compactando huecos consecutivos
+    /// para minimizar el número de vistas nativas y mejorar drásticamente el rendimiento en Windows.
     private var shelves: [ShelfRow] {
         (0..<fixedRows).map { row in
-            let cells = (0..<fixedColumns).map { col in
-                ShelfCell(id: col, book: viewModel.book(atRow: row, col: col))
+            var segments: [ShelfSegment] = []
+            var emptyRun = 0
+            var runStart = 0
+
+            for col in 0..<fixedColumns {
+                if let book = viewModel.book(atRow: row, col: col) {
+                    if emptyRun > 0 {
+                        segments.append(ShelfSegment(id: "g-\(row)-\(runStart)", kind: .gap(count: emptyRun)))
+                        emptyRun = 0
+                    }
+                    segments.append(ShelfSegment(id: "b-\(book.id.uuidString)", kind: .book(book)))
+                } else {
+                    if emptyRun == 0 { runStart = col }
+                    emptyRun += 1
+                }
             }
-            return ShelfRow(id: row, cells: cells)
+            if emptyRun > 0 {
+                segments.append(ShelfSegment(id: "g-\(row)-\(runStart)", kind: .gap(count: emptyRun)))
+            }
+            return ShelfRow(id: row, segments: segments)
         }
     }
 
@@ -67,8 +91,6 @@ struct BookListView: View {
         let currentRowWidth = rowTotalWidth
         NavigationStack {
 #if os(Windows)
-            // En Win32 evitamos GeometryReader dentro de ZStack porque provoca reconstrucciones
-            // en bucle de los HWND (parpadeo) y solapamientos en NavigationSplitView.
             shelfScrollContent(
                 cellWidth: currentCellWidth,
                 cellHeight: currentCellHeight,
@@ -140,11 +162,14 @@ struct BookListView: View {
                     ForEach(shelves) { shelf in
                         VStack(alignment: .leading, spacing: 0) {
                             HStack(alignment: .bottom, spacing: 1) {
-                                ForEach(shelf.cells) { cell in
-                                    if let book = cell.book {
+                                ForEach(shelf.segments) { segment in
+                                    switch segment.kind {
+                                    case .book(let book):
                                         bookItem(book: book, cellWidth: currentCellWidth, cellHeight: currentCellHeight)
-                                    } else {
-                                        emptySlot(cellWidth: currentCellWidth, cellHeight: currentCellHeight)
+                                    case .gap(let count):
+                                        let gapWidth = Double(count) * currentCellWidth + Double(max(0, count - 1))
+                                        Spacer(minLength: 0)
+                                            .shelfFrame(width: gapWidth, height: currentCellHeight)
                                     }
                                 }
                             }
@@ -195,13 +220,6 @@ struct BookListView: View {
                 containerWidth = measured
             }
         }
-    }
-
-    /// Hueco vacío de la matriz 2D (limpio en lectura, guía sutil en modo edición).
-    private func emptySlot(cellWidth: Double, cellHeight: Double) -> some View {
-        Rectangle()
-            .fill(isReordering ? config.shelfWoodColor.opacity(0.35) : Color.clear)
-            .shelfFrame(width: cellWidth, height: cellHeight)
     }
 
     /// Un libro colocado en la estantería: en modo edición es pasivo (lo arrastra la capa superior);

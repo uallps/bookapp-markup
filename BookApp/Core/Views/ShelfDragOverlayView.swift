@@ -42,8 +42,10 @@ struct ShelfDragOverlayView: View {
     var body: some View {
 #if !canImport(SwiftOpenUI)
         Canvas { context, _ in
-            guard let drag = activeDrag else { return }
-            drawAppleDragPreview(drag, in: &context)
+            drawAppleSlotGuides(in: &context)
+            if let drag = activeDrag {
+                drawAppleDragPreview(drag, in: &context)
+            }
         }
         .frame(width: CGFloat(totalWidth), height: CGFloat(totalHeight))
         .contentShape(Rectangle())
@@ -68,8 +70,10 @@ struct ShelfDragOverlayView: View {
         )
 #else
         Canvas(width: totalWidth, height: totalHeight) { context, _, _ in
-            guard let drag = activeDrag else { return }
-            drawOpenUIDragPreview(drag, in: context)
+            drawOpenUISlotGuides(in: context)
+            if let drag = activeDrag {
+                drawOpenUIDragPreview(drag, in: context)
+            }
         }
         .onDrag(
             minimumDistance: 3,
@@ -170,6 +174,21 @@ struct ShelfDragOverlayView: View {
     // MARK: - Dibujo en Canvas
 
 #if !canImport(SwiftOpenUI)
+    private func drawAppleSlotGuides(in context: inout GraphicsContext) {
+        let guideColor = GraphicsContext.Shading.color(Color.black.opacity(0.06))
+        for r in 0..<rows {
+            for c in 0..<columns where book(atRow: r, col: c) == nil {
+                let rect = CGRect(
+                    x: Double(c) * colStride + 2,
+                    y: Double(r) * rowStride + 4,
+                    width: max(4, slotWidth - 4),
+                    height: max(4, slotHeight - 4)
+                )
+                context.fill(Path(rect), with: guideColor)
+            }
+        }
+    }
+
     private func drawAppleDragPreview(_ drag: ActiveBookDrag, in context: inout GraphicsContext) {
         let originRect = CGRect(
             x: Double(drag.startCol) * colStride,
@@ -229,6 +248,23 @@ struct ShelfDragOverlayView: View {
         context.stroke(Path(floatingRect), with: GraphicsContext.Shading.color(Color.white.opacity(0.9)), lineWidth: 2)
     }
 #else
+    private func drawOpenUISlotGuides(in context: DrawingContext) {
+#if canImport(BackendGTK4) || canImport(BackendWin32)
+        context.setColor(r: 0, g: 0, b: 0, a: 0.06)
+        for r in 0..<rows {
+            for c in 0..<columns where book(atRow: r, col: c) == nil {
+                context.rectangle(
+                    x: Double(c) * colStride + 2,
+                    y: Double(r) * rowStride + 4,
+                    width: max(4, slotWidth - 4),
+                    height: max(4, slotHeight - 4)
+                )
+                context.fill()
+            }
+        }
+#endif
+    }
+
     private func drawOpenUIDragPreview(_ drag: ActiveBookDrag, in context: DrawingContext) {
 #if canImport(BackendGTK4) || canImport(BackendWin32)
         let ox = Double(drag.startCol) * colStride

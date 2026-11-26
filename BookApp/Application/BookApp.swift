@@ -22,7 +22,7 @@ struct BookApp: App {
                 BookListView(storageProvider: config.storageType.makeProvider())
                     // Las pestañas conservan su estado: al cambiar de almacenamiento se rehace la lista.
                     .id(config.storageType)
-                    .tabItem { Label("Libros", systemImage: "book") }
+                    .tabItem { Label("Libros", systemImage: "books.vertical") }
                 SettingsView()
                     .tabItem { Label("Ajustes", systemImage: "gearshape") }
             }
@@ -32,7 +32,7 @@ struct BookApp: App {
             NavigationSplitView {
                 List(selection: $selection) {
                     NavigationLink(value: "libros") {
-                        Label("Libros", systemImage: "book")
+                        Label("Libros", systemImage: "books.vertical")
                     }
                     NavigationLink(value: "ajustes") {
                         Label("Ajustes", systemImage: "gearshape")

@@ -66,57 +66,46 @@ struct BookListView: View {
         let currentWoodHeight = woodHeight
         let currentRowWidth = rowTotalWidth
         NavigationStack {
+#if os(Windows)
+            // En Win32 evitamos GeometryReader dentro de ZStack porque provoca reconstrucciones
+            // en bucle de los HWND (parpadeo) y solapamientos en NavigationSplitView.
+            shelfScrollContent(
+                cellWidth: currentCellWidth,
+                cellHeight: currentCellHeight,
+                woodHeight: currentWoodHeight,
+                rowWidth: currentRowWidth
+            )
+            .background(config.shelfBackgroundColor)
+            .toolbar {
+                Button(isReordering ? "Listo" : "Reordenar") {
+                    isReordering.toggle()
+                }
+                Button("Añadir libro") {
+                    showingAddBook = true
+                }
+            }
+            .sheet(isPresented: $showingAddBook) {
+                AddBookView { newBook in
+                    viewModel.addBook(newBook)
+                }
+            }
+            .navigationTitle("Libros")
+#else
             ZStack(alignment: .topLeading) {
                 // Sensor de anchura sin vistas hijas que dependan de @Environment,
-                // compatible tanto con GTK4/Win32 (SwiftOpenUI) como con macOS/iOS.
+                // compatible tanto con GTK4 (SwiftOpenUI) como con macOS/iOS.
                 GeometryReader { geo in
                     let measured = Double(geo.size.width)
                     let _ = updateWidthIfNeeded(measured)
                     Color.clear
                 }
 
-                ScrollView {
-                    ZStack(alignment: .topLeading) {
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(shelves) { shelf in
-                                VStack(alignment: .leading, spacing: 0) {
-                                    HStack(alignment: .bottom, spacing: 1) {
-                                        ForEach(shelf.cells) { cell in
-                                            if let book = cell.book {
-                                                bookItem(book: book, cellWidth: currentCellWidth, cellHeight: currentCellHeight)
-                                            } else {
-                                                emptySlot(cellWidth: currentCellWidth, cellHeight: currentCellHeight)
-                                            }
-                                        }
-                                    }
-                                    .shelfFrame(width: currentRowWidth, height: currentCellHeight)
-
-                                    // Balda minimalista flotante con esquinas redondeadas y sombra suave
-                                    Rectangle()
-                                        .fill(config.shelfWoodColor)
-                                        .shelfFrame(width: currentRowWidth, height: currentWoodHeight)
-                                        .cornerRadius(5)
-                                        .shadow(radius: 3, y: 2)
-                                }
-                            }
-                        }
-
-                        if isReordering {
-                            ShelfDragOverlayView(
-                                books: viewModel.books,
-                                columns: fixedColumns,
-                                rows: fixedRows,
-                                slotWidth: currentCellWidth,
-                                slotHeight: currentCellHeight,
-                                woodHeight: currentWoodHeight,
-                                backgroundRGB: config.shelfBgRGB,
-                                onMove: { bookID, targetRow, targetCol in
-                                    viewModel.moveBook(id: bookID, toRow: targetRow, toCol: targetCol)
-                                }
-                            )
-                        }
-                    }
-                }
+                shelfScrollContent(
+                    cellWidth: currentCellWidth,
+                    cellHeight: currentCellHeight,
+                    woodHeight: currentWoodHeight,
+                    rowWidth: currentRowWidth
+                )
                 .frame(minWidth: 0, maxWidth: .infinity)
             }
             .frame(minWidth: 0, maxWidth: .infinity)
@@ -135,7 +124,68 @@ struct BookListView: View {
                 }
             }
             .navigationTitle("Libros")
+#endif
         }
+    }
+
+    private func shelfScrollContent(
+        cellWidth currentCellWidth: Double,
+        cellHeight currentCellHeight: Double,
+        woodHeight currentWoodHeight: Double,
+        rowWidth currentRowWidth: Double
+    ) -> some View {
+        ScrollView {
+            ZStack(alignment: .topLeading) {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(shelves) { shelf in
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack(alignment: .bottom, spacing: 1) {
+                                ForEach(shelf.cells) { cell in
+                                    if let book = cell.book {
+                                        bookItem(book: book, cellWidth: currentCellWidth, cellHeight: currentCellHeight)
+                                    } else {
+                                        emptySlot(cellWidth: currentCellWidth, cellHeight: currentCellHeight)
+                                    }
+                                }
+                            }
+                            .shelfFrame(width: currentRowWidth, height: currentCellHeight)
+
+                            shelfPlank(width: currentRowWidth, height: currentWoodHeight)
+                        }
+                    }
+                }
+
+                if isReordering {
+                    ShelfDragOverlayView(
+                        books: viewModel.books,
+                        columns: fixedColumns,
+                        rows: fixedRows,
+                        slotWidth: currentCellWidth,
+                        slotHeight: currentCellHeight,
+                        woodHeight: currentWoodHeight,
+                        backgroundRGB: config.shelfBgRGB,
+                        onMove: { bookID, targetRow, targetCol in
+                            viewModel.moveBook(id: bookID, toRow: targetRow, toCol: targetCol)
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func shelfPlank(width: Double, height: Double) -> some View {
+#if os(Windows)
+        Rectangle()
+            .fill(config.shelfWoodColor)
+            .shelfFrame(width: width, height: height)
+#else
+        Rectangle()
+            .fill(config.shelfWoodColor)
+            .shelfFrame(width: width, height: height)
+            .cornerRadius(5)
+            .shadow(radius: 3, y: 2)
+#endif
     }
 
     private func updateWidthIfNeeded(_ measured: Double) {
@@ -147,15 +197,11 @@ struct BookListView: View {
         }
     }
 
-    /// Hueco vacío de la matriz 2D (limpio en lectura, tarjeta guía redondeada en modo edición).
+    /// Hueco vacío de la matriz 2D (limpio en lectura, guía sutil en modo edición).
     private func emptySlot(cellWidth: Double, cellHeight: Double) -> some View {
-        ZStack(alignment: .bottom) {
-            Rectangle()
-                .fill(isReordering ? config.shelfWoodColor.opacity(0.35) : Color.clear)
-                .shelfFrame(width: max(24.0, cellWidth - 4.0), height: max(60.0, cellHeight - 4.0))
-                .cornerRadius(8)
-        }
-        .shelfFrame(width: cellWidth, height: cellHeight)
+        Rectangle()
+            .fill(isReordering ? config.shelfWoodColor.opacity(0.35) : Color.clear)
+            .shelfFrame(width: cellWidth, height: cellHeight)
     }
 
     /// Un libro colocado en la estantería: en modo edición es pasivo (lo arrastra la capa superior);

@@ -19,52 +19,48 @@ struct BookRowView: View {
         let titleLines = cardWidth < 38.0 ? 1 : 2
 
 #if os(Windows)
-        // En Win32 (SwiftOpenUI), usamos una jerarquía ligera sin sombras ni capas extra,
-        // centrando el lomo de grosor variable dentro de su celda fija `cellWidth`.
-        ZStack {
-            VStack(spacing: 4) {
-                if let toggleRead {
-                    Button(action: toggleRead) {
-                        Image(systemName: book.isRead ? "checkmark.circle.fill" : "circle")
-                            .foregroundColor(.white)
-                    }
+        // En Win32 (SwiftOpenUI), usamos Button de Text (FlatButtonState) para respetar
+        // .buttonStyle(.plain) y heredar el color del lomo sin caja gris de CustomButton.
+        VStack(spacing: 4) {
+            if let toggleRead {
+                Button(book.isRead ? "✓" : "○", action: toggleRead)
                     .buttonStyle(.plain)
+                    .foregroundColor(.white)
                     .padding(.top, 6)
-                } else {
-                    Text("⇄")
-                        .bookCaption(color: .white)
-                        .padding(.top, 6)
-                }
-
-                Spacer(minLength: 0)
-
-                Text(book.title)
-                    .font(.caption)
-                    .foregroundColor(.bookInk)
-                    .strikethrough(book.isRead)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(titleLines)
-                    .shelfFrame(width: innerWidth, height: max(40.0, cellHeight - 60.0))
-
-                Spacer(minLength: 0)
-
-                if showDueDates, let dueDate {
-                    Text(dueDate.formatted(date: .numeric, time: .omitted))
-                        .bookCaption(color: .white.opacity(0.9))
-                        .lineLimit(1)
-                }
-#if Prioridades
-                if showPriorities, let priority = book.priority {
-                    Text(priority.rawValue)
-                        .bookCaption(color: .white.opacity(0.92))
-                        .lineLimit(1)
-                }
-#endif
+            } else {
+                Text("⇄")
+                    .bookCaption(color: .white)
+                    .padding(.top, 6)
             }
-            .padding(.bottom, 6)
-            .shelfFrame(width: cardWidth, height: cellHeight)
-            .background(book.coverColor.color)
+
+            Spacer(minLength: 0)
+
+            Text(book.title)
+                .font(.caption)
+                .foregroundColor(.bookInk)
+                .strikethrough(book.isRead)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .shelfFrame(width: innerWidth, height: max(40.0, cellHeight - 60.0))
+
+            Spacer(minLength: 0)
+
+            if showDueDates, let dueDate {
+                Text(dueDate.formatted(date: .numeric, time: .omitted))
+                    .bookCaption(color: .white.opacity(0.9))
+                    .lineLimit(1)
+            }
+#if Prioridades
+            if showPriorities, let priority = book.priority {
+                Text(priority.rawValue)
+                    .bookCaption(color: .white.opacity(0.92))
+                    .lineLimit(1)
+            }
+#endif
         }
+        .padding(.bottom, 6)
+        .shelfFrame(width: cardWidth, height: cellHeight)
+        .background(book.coverColor.color)
         .shelfFrame(width: cellWidth, height: cellHeight)
 #else
         let cardHeight = max(60.0, cellHeight - 4.0)

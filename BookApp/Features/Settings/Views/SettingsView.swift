@@ -103,12 +103,13 @@ struct SettingsView: View {
         HStack {
             Text(title)
             Spacer()
-            Button(action: action) {
 #if os(Windows)
-                Rectangle()
-                    .fill(color)
-                    .frame(width: 26, height: 26)
+            Rectangle()
+                .fill(color)
+                .frame(width: 24, height: 24)
+            Button("Cambiar", action: action)
 #else
+            Button(action: action) {
                 Circle()
                     .fill(color)
                     .frame(width: 26, height: 26)
@@ -116,9 +117,9 @@ struct SettingsView: View {
                         Circle()
                             .stroke(Color.black.opacity(0.25), lineWidth: 1)
                     )
-#endif
             }
             .buttonStyle(.plain)
+#endif
         }
     }
 }

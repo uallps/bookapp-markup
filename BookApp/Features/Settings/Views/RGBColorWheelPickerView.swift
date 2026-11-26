@@ -22,8 +22,13 @@ private struct ColorWheelCanvasView: View {
     @State private var hue: Double
     @State private var saturation: Double
 
+#if os(Windows)
+    private let wheelSize: Double = 140
+    private let wheelRadius: Double = 60
+#else
     private let wheelSize: Double = 220
     private let wheelRadius: Double = 96
+#endif
 
     init(
         brightness: Double,
@@ -249,6 +254,60 @@ struct RGBColorWheelPickerView: View {
 
     var body: some View {
         let rgb = currentRGB
+#if os(Windows)
+        // En Win32, win32PresentSheet crea ventanas de 400x300 pt: compactamos el contenido
+        // para que el deslizador de brillo y los botones Cancelar/Guardar no queden cortados.
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Rectangle()
+                    .fill(currentColor)
+                    .frame(width: 28, height: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.headline)
+                    Text("RGB(\(Int((rgb.r * 255).rounded())), \(Int((rgb.g * 255).rounded())), \(Int((rgb.b * 255).rounded())))")
+                        .bookCaption()
+                }
+                Spacer()
+            }
+
+            ColorWheelCanvasView(
+                brightness: brightness,
+                initialHue: hue,
+                initialSaturation: saturation,
+                onPick: { newHue, newSat in
+                    hue = newHue
+                    saturation = newSat
+                }
+            )
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text("Brillo")
+                        .bookCaption()
+                    Spacer()
+                    Text("\(Int((brightness * 100).rounded()))%")
+                        .bookCaption()
+                }
+                Slider(value: $brightness, in: 0.05...1.0, step: 0.01)
+            }
+
+            HStack {
+                Button("Cancelar") {
+                    onCancel()
+                    dismiss()
+                }
+                Spacer()
+                Button("Guardar") {
+                    let finalRGB = currentRGB
+                    onSave(finalRGB.r, finalRGB.g, finalRGB.b)
+                    dismiss()
+                }
+            }
+        }
+        .padding(12)
+#else
         VStack(spacing: 16) {
             HStack(spacing: 12) {
                 Rectangle()
@@ -301,6 +360,7 @@ struct RGBColorWheelPickerView: View {
         }
         .padding(20)
         .frame(width: 300, height: 390)
+#endif
     }
 
     // MARK: - Conversión RGB <-> HSV

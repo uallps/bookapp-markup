@@ -58,6 +58,46 @@ private struct ShelfGridContentView: View {
     }
 
     var body: some View {
+#if os(Windows)
+        if isReordering {
+            ShelfDragOverlayView(
+                books: viewModel.books,
+                columns: fixedColumns,
+                rows: fixedRows,
+                slotWidth: cellWidth,
+                slotHeight: cellHeight,
+                woodHeight: woodHeight,
+                backgroundRGB: config.shelfBgRGB,
+                woodRGB: config.shelfWoodRGB,
+                onMove: { bookID, targetRow, targetCol in
+                    viewModel.moveBook(id: bookID, toRow: targetRow, toCol: targetCol)
+                }
+            )
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(shelves) { shelf in
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(alignment: .bottom, spacing: 1) {
+                            ForEach(shelf.segments) { segment in
+                                switch segment.kind {
+                                case .book(let book):
+                                    bookItem(book: book)
+                                case .gap(let count):
+                                    let gapWidth = Double(count) * cellWidth + Double(max(0, count - 1))
+                                    Spacer(minLength: 0)
+                                        .shelfFrame(width: gapWidth, height: cellHeight)
+                                }
+                            }
+                        }
+                        .shelfFrame(width: rowWidth, height: cellHeight)
+
+                        shelfPlank
+                    }
+                }
+            }
+            .background(config.shelfBackgroundColor)
+        }
+#else
         ZStack(alignment: .topLeading) {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(shelves) { shelf in
@@ -90,12 +130,14 @@ private struct ShelfGridContentView: View {
                     slotHeight: cellHeight,
                     woodHeight: woodHeight,
                     backgroundRGB: config.shelfBgRGB,
+                    woodRGB: config.shelfWoodRGB,
                     onMove: { bookID, targetRow, targetCol in
                         viewModel.moveBook(id: bookID, toRow: targetRow, toCol: targetCol)
                     }
                 )
             }
         }
+#endif
     }
 
     @ViewBuilder
@@ -167,7 +209,11 @@ struct BookListView: View {
     @State private var viewModel: BookListViewModel
     @State private var showingAddBook = false
     @State private var isReordering = false
+#if os(Windows)
+    @State private var containerWidth: Double = 600
+#else
     @State private var containerWidth: Double = 650
+#endif
     /// La configuración la crea la app y llega por el entorno: es la misma que edita Ajustes.
     @Environment(AppConfig.self) private var config
 

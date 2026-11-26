@@ -24,6 +24,7 @@ struct ShelfDragOverlayView: View {
     let slotHeight: Double
     let woodHeight: Double
     let backgroundRGB: (r: Double, g: Double, b: Double)
+    let woodRGB: (r: Double, g: Double, b: Double)
     let onMove: (UUID, Int, Int) -> Void
 
     @State private var activeDrag: ActiveBookDrag?
@@ -258,6 +259,24 @@ struct ShelfDragOverlayView: View {
 #else
     private func drawOpenUISlotGuides(in context: DrawingContext) {
 #if canImport(BackendGTK4) || canImport(BackendWin32)
+#if os(Windows)
+        // En Win32 Canvas limpia el fondo de forma opaca, así que dibujamos también
+        // el fondo, las baldas y los libros en reposo para que la estantería sea visible.
+        context.setColor(r: backgroundRGB.r, g: backgroundRGB.g, b: backgroundRGB.b, a: 1.0)
+        context.rectangle(x: 0, y: 0, width: Double(totalWidth), height: Double(totalHeight))
+        context.fill()
+
+        context.setColor(r: woodRGB.r, g: woodRGB.g, b: woodRGB.b, a: 1.0)
+        for r in 0..<rows {
+            context.rectangle(
+                x: 0,
+                y: Double(r) * rowStride + slotHeight,
+                width: Double(totalWidth),
+                height: woodHeight
+            )
+            context.fill()
+        }
+#endif
         context.setColor(r: 0, g: 0, b: 0, a: 0.06)
         for r in 0..<rows {
             for c in 0..<columns where book(atRow: r, col: c) == nil {
@@ -270,6 +289,35 @@ struct ShelfDragOverlayView: View {
                 context.fill()
             }
         }
+#if os(Windows)
+        for b in books {
+            if activeDrag?.book.id == b.id { continue }
+            guard let r = b.shelfRow, let c = b.shelfCol else { continue }
+            let geom = bookThicknessGeometry(for: b)
+            let bx = Double(c) * colStride + geom.xOffset
+            let by = Double(r) * rowStride
+            let rgb = b.coverColor.rgb
+
+            context.setColor(r: rgb.r, g: rgb.g, b: rgb.b, a: 1.0)
+            context.rectangle(x: bx, y: by, width: geom.width, height: slotHeight)
+            context.fill()
+
+            context.setColor(r: 1.0, g: 1.0, b: 1.0, a: 0.25)
+            context.setLineWidth(1)
+            context.rectangle(x: bx, y: by, width: geom.width, height: slotHeight)
+            context.stroke()
+
+            // Indicador de libro leído o en movimiento
+            context.setColor(r: 1.0, g: 1.0, b: 1.0, a: b.isRead ? 0.95 : 0.45)
+            context.arc(centerX: bx + geom.width / 2.0, centerY: by + 12.0, radius: 4.0)
+            if b.isRead {
+                context.fill()
+            } else {
+                context.setLineWidth(1.5)
+                context.stroke()
+            }
+        }
+#endif
 #endif
     }
 

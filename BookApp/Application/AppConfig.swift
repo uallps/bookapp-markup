@@ -46,6 +46,10 @@ final class AppConfig {
         (shelfBgRed, shelfBgGreen, shelfBgBlue)
     }
 
+    var shelfWoodRGB: (r: Double, g: Double, b: Double) {
+        (shelfWoodRed, shelfWoodGreen, shelfWoodBlue)
+    }
+
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {

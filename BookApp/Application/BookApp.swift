@@ -30,6 +30,12 @@ struct BookApp: App {
             .environment(dueDates)
 #else
             NavigationSplitView {
+#if os(Windows)
+                List(selection: $selection) {
+                    NavigationLink(selection == "libros" ? "▸ Libros" : "  Libros", value: "libros")
+                    NavigationLink(selection == "ajustes" ? "▸ Ajustes" : "  Ajustes", value: "ajustes")
+                }
+#else
                 List(selection: $selection) {
                     NavigationLink(value: "libros") {
                         Label("Libros", systemImage: "books.vertical")
@@ -38,6 +44,7 @@ struct BookApp: App {
                         Label("Ajustes", systemImage: "gearshape")
                     }
                 }
+#endif
             } detail: {
                 switch selection {
                 case "libros":

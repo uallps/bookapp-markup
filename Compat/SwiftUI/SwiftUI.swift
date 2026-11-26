@@ -4,9 +4,9 @@
 @_exported import SwiftOpenUI
 
 #if canImport(BackendGTK4)
-import BackendGTK4
+@_exported import BackendGTK4
 #elseif canImport(BackendWin32)
-import BackendWin32
+@_exported import BackendWin32
 #endif
 
 // Permite `@main struct BookApp: App`, igual que en Apple.

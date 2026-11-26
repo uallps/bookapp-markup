@@ -42,6 +42,17 @@ extension BookColor {
         case .purple: return .purple
         }
     }
+
+    /// Componentes RGB (0...1) para dibujar el libro en el Canvas durante el arrastre.
+    var rgb: (r: Double, g: Double, b: Double) {
+        switch self {
+        case .blue: return (0.19, 0.38, 0.58)
+        case .red: return (0.95, 0.22, 0.20)
+        case .green: return (0.13, 0.67, 0.30)
+        case .orange: return (0.96, 0.53, 0.12)
+        case .purple: return (0.55, 0.24, 0.72)
+        }
+    }
 }
 
 #if Prioridades

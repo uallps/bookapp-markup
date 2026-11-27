@@ -13,11 +13,14 @@ final class BookListViewModel {
         Book(title: "1984", author: "George Orwell", totalPages: 328, coverColor: .red, priority: .medium, shelfRow: 0, shelfCol: 1),
         Book(title: "Clean Code", author: "Robert C. Martin", totalPages: 464, coverColor: .blue, shelfRow: 0, shelfCol: 2)
     ] {
-        didSet { save() }
+        didSet {
+            if !isLoading { save() }
+        }
     }
 
     @ObservationIgnored private let storageProvider: StorageProvider
     @ObservationIgnored private var loaded = false
+    @ObservationIgnored private var isLoading = false
 
     /// Por defecto guarda en JSON; en pruebas se le pasa un MockStorageProvider.
     init(storageProvider: StorageProvider = JSONStorageProvider()) {
@@ -33,6 +36,8 @@ final class BookListViewModel {
         do {
             var loadedBooks = try await storageProvider.loadBooks()
             Self.assignMissingPositions(&loadedBooks)
+            isLoading = true
+            defer { isLoading = false }
             books = loadedBooks
         } catch {
             print("No se han cargado libros: \(error)")

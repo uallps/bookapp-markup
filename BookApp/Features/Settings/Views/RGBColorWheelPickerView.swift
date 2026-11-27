@@ -131,8 +131,13 @@ private struct ColorWheelCanvasView: View {
 #if canImport(BackendGTK4) || canImport(BackendWin32)
         let cx = wheelSize / 2.0
         let cy = wheelSize / 2.0
+#if os(Windows)
+        let angleSteps = 48
+        let ringSteps = 10
+#else
         let angleSteps = 120
         let ringSteps = 14
+#endif
         let dAngle = (2.0 * .pi) / Double(angleSteps)
         let overlap = 0.015
 

@@ -14,6 +14,14 @@ private struct ActiveBookDrag {
     let targetCol: Int
 }
 
+#if os(Windows)
+/// Almacén mutable sin `@Observable` para que el arrastre en `Canvas` no dispare
+/// `WM_SWIFTUI_REBUILD` en cada `WM_MOUSEMOVE` (lo que destruiría el HWND y perdería `SetCapture`).
+private final class WindowsDragState {
+    var activeDrag: ActiveBookDrag?
+}
+#endif
+
 /// Capa interactiva sobre la estantería en modo edición:
 /// dibuja en vivo el libro levantado siguiendo el puntero y el hueco destino con bordes brillantes.
 struct ShelfDragOverlayView: View {
@@ -27,7 +35,19 @@ struct ShelfDragOverlayView: View {
     let woodRGB: (r: Double, g: Double, b: Double)
     let onMove: (UUID, Int, Int) -> Void
 
+#if os(Windows)
+    @State private var dragState = WindowsDragState()
+
+    private var currentActiveDrag: ActiveBookDrag? {
+        dragState.activeDrag
+    }
+#else
     @State private var activeDrag: ActiveBookDrag?
+
+    private var currentActiveDrag: ActiveBookDrag? {
+        activeDrag
+    }
+#endif
 
     private var colStride: Double { slotWidth + 1.0 }
     private var rowStride: Double { slotHeight + woodHeight }
@@ -72,7 +92,7 @@ struct ShelfDragOverlayView: View {
 #else
         Canvas(width: totalWidth, height: totalHeight) { context, _, _ in
             drawOpenUISlotGuides(in: context)
-            if let drag = activeDrag {
+            if let drag = currentActiveDrag {
                 drawOpenUIDragPreview(drag, in: context)
             }
         }
@@ -126,13 +146,21 @@ struct ShelfDragOverlayView: View {
         )
     }
 
-    private func updateDrag(startX: Double, startY: Double, dx: Double, dy: Double) {
-        if let current = activeDrag {
+    private func setActiveDrag(_ drag: ActiveBookDrag?) {
+#if os(Windows)
+        dragState.activeDrag = drag
+#else
+        activeDrag = drag
+#endif
+    }
+
+    private func resolvedDrag(startX: Double, startY: Double, dx: Double, dy: Double) -> ActiveBookDrag? {
+        if let current = currentActiveDrag {
             let colShift = Int((dx / colStride).rounded())
             let rowShift = Int((dy / rowStride).rounded())
             let targetCol = max(0, min(columns - 1, current.startCol + colShift))
             let targetRow = max(0, min(rows - 1, current.startRow + rowShift))
-            activeDrag = ActiveBookDrag(
+            return ActiveBookDrag(
                 book: current.book,
                 startRow: current.startRow,
                 startCol: current.startCol,
@@ -141,32 +169,17 @@ struct ShelfDragOverlayView: View {
                 targetRow: targetRow,
                 targetCol: targetCol
             )
-        } else {
-            activeDrag = computeDrag(startX: startX, startY: startY, dx: dx, dy: dy)
         }
+        return computeDrag(startX: startX, startY: startY, dx: dx, dy: dy)
+    }
+
+    private func updateDrag(startX: Double, startY: Double, dx: Double, dy: Double) {
+        setActiveDrag(resolvedDrag(startX: startX, startY: startY, dx: dx, dy: dy))
     }
 
     private func endDrag(startX: Double, startY: Double, dx: Double, dy: Double) {
-        let finalDrag: ActiveBookDrag?
-        if let current = activeDrag {
-            let colShift = Int((dx / colStride).rounded())
-            let rowShift = Int((dy / rowStride).rounded())
-            let targetCol = max(0, min(columns - 1, current.startCol + colShift))
-            let targetRow = max(0, min(rows - 1, current.startRow + rowShift))
-            finalDrag = ActiveBookDrag(
-                book: current.book,
-                startRow: current.startRow,
-                startCol: current.startCol,
-                dx: dx,
-                dy: dy,
-                targetRow: targetRow,
-                targetCol: targetCol
-            )
-        } else {
-            finalDrag = computeDrag(startX: startX, startY: startY, dx: dx, dy: dy)
-        }
-
-        activeDrag = nil
+        let finalDrag = resolvedDrag(startX: startX, startY: startY, dx: dx, dy: dy)
+        setActiveDrag(nil)
         if let finalDrag {
             onMove(finalDrag.book.id, finalDrag.targetRow, finalDrag.targetCol)
         }
@@ -291,7 +304,7 @@ struct ShelfDragOverlayView: View {
         }
 #if os(Windows)
         for b in books {
-            if activeDrag?.book.id == b.id { continue }
+            if currentActiveDrag?.book.id == b.id { continue }
             guard let r = b.shelfRow, let c = b.shelfCol else { continue }
             let geom = bookThicknessGeometry(for: b)
             let bx = Double(c) * colStride + geom.xOffset

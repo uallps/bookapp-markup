@@ -300,7 +300,10 @@ struct BookListView: View {
                     dueDate: Binding(
                         get: { dueDates.dueDate(for: bookID) },
                         set: { dueDates.setDueDate($0, for: bookID) }
-                    )
+                    ),
+                    onDone: {
+                        selectedBookID = nil
+                    }
                 )
             } else {
                 HStack(spacing: 8) {

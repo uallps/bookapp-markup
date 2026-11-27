@@ -19,7 +19,7 @@ let package = Package(
         .trait(name: "Prioridades", description: "Característica opcional: prioridad del libro"),
     ],
     dependencies: [
-        .package(url: "https://github.com/uallps/SwiftOpenUI.git", branch: "uallps"),
+        .package(path: "../openswiftui/SwiftOpenUI"),
     ],
     targets: [
         // Sustituye al SwiftUI de Apple: `import SwiftUI` trae SwiftOpenUI y su backend.

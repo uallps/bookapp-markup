@@ -23,16 +23,26 @@ struct BookRowView: View {
 #if os(Windows)
         // En Win32 (SwiftOpenUI), usamos Button de Text (FlatButtonState) para respetar
         // .buttonStyle(.plain) y heredar el color del lomo sin caja gris de CustomButton.
-        VStack(spacing: 4) {
+        let reservedHeight: Double = {
+            var total = 40.0
+            if onSelect != nil { total += 32.0 }
+            if showDueDates, dueDate != nil { total += 18.0 }
+#if Prioridades
+            if showPriorities, book.priority != nil { total += 18.0 }
+#endif
+            return total
+        }()
+        let titleLength = max(36.0, cellHeight - reservedHeight)
+
+        VStack(spacing: 2) {
             if let toggleRead {
                 Button(book.isRead ? "✓" : "○", action: toggleRead)
                     .buttonStyle(.plain)
                     .foregroundColor(.white)
-                    .padding(.top, 6)
             } else {
                 Text("⇄")
                     .bookCaption(color: .white)
-                    .padding(.top, 6)
+                    .padding(.top, 4)
             }
 
             Spacer(minLength: 0)
@@ -42,8 +52,9 @@ struct BookRowView: View {
                 .foregroundColor(.bookInk)
                 .strikethrough(book.isRead)
                 .multilineTextAlignment(.center)
-                .lineLimit(3)
-                .shelfFrame(width: innerWidth, height: max(40.0, cellHeight - 60.0))
+                .lineLimit(titleLines)
+                .shelfFrame(width: titleLength, height: innerWidth)
+                .rotationEffect(.degrees(-90))
 
             Spacer(minLength: 0)
 
@@ -65,7 +76,7 @@ struct BookRowView: View {
                     .foregroundColor(.white)
             }
         }
-        .padding(.bottom, 6)
+        .padding(.bottom, 2)
         .shelfFrame(width: cardWidth, height: cellHeight)
         .background(book.coverColor.color)
         .shelfFrame(width: cellWidth, height: cellHeight)

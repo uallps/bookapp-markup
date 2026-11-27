@@ -11,8 +11,15 @@ struct BookRowView: View {
     let showPriorities: Bool
     /// En modo edición es `nil`: no se muestra el botón de marcar para poder arrastrar el libro.
     let toggleRead: (() -> Void)?
-    /// Acción al pulsar para abrir el detalle del libro (usado en Windows para evitar NavigationLink anidado).
-    var onSelect: (() -> Void)? = nil
+
+    /// Formato compacto `dd/MM/yy` (ej. `13/11/26`) para mostrar la fecha completa en vertical sobre el lomo.
+    private static func compactDueDate(_ date: Date) -> String {
+        let c = Calendar.current.dateComponents([.day, .month, .year], from: date)
+        let d = c.day ?? 1
+        let m = c.month ?? 1
+        let y = (c.year ?? 0) % 100
+        return "\(d < 10 ? "0" : "")\(d)/\(m < 10 ? "0" : "")\(m)/\(y < 10 ? "0" : "")\(y)"
+    }
 
     var body: some View {
         let maxCardWidth = max(24.0, cellWidth - 2.0)
@@ -23,10 +30,10 @@ struct BookRowView: View {
 #if os(Windows)
         // En Win32 (SwiftOpenUI), usamos Button de Text (FlatButtonState) para respetar
         // .buttonStyle(.plain) y heredar el color del lomo sin caja gris de CustomButton.
+        let dueDateLength = 50.0
         let reservedHeight: Double = {
-            var total = 40.0
-            if onSelect != nil { total += 32.0 }
-            if showDueDates, dueDate != nil { total += 18.0 }
+            var total = 44.0
+            if showDueDates, dueDate != nil { total += dueDateLength + 4.0 }
 #if Prioridades
             if showPriorities, book.priority != nil { total += 18.0 }
 #endif
@@ -59,9 +66,13 @@ struct BookRowView: View {
             Spacer(minLength: 0)
 
             if showDueDates, let dueDate {
-                Text(dueDate.formatted(date: .numeric, time: .omitted))
-                    .bookCaption(color: .white.opacity(0.9))
+                Text(Self.compactDueDate(dueDate))
+                    .font(.footnote)
+                    .foregroundColor(.white.opacity(0.9))
+                    .multilineTextAlignment(.center)
                     .lineLimit(1)
+                    .shelfFrame(width: dueDateLength, height: min(innerWidth, 16.0))
+                    .rotationEffect(.degrees(-90))
             }
 #if Prioridades
             if showPriorities, let priority = book.priority {
@@ -70,13 +81,8 @@ struct BookRowView: View {
                     .lineLimit(1)
             }
 #endif
-            if let onSelect {
-                Button("Ver", action: onSelect)
-                    .buttonStyle(.plain)
-                    .foregroundColor(.white)
-            }
         }
-        .padding(.bottom, 2)
+        .padding(.bottom, 4)
         .shelfFrame(width: cardWidth, height: cellHeight)
         .background(book.coverColor.color)
         .shelfFrame(width: cellWidth, height: cellHeight)

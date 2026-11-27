@@ -177,9 +177,11 @@ private struct ShelfGridContentView: View {
                 dueDate: dueDates.dueDate(for: book.id),
                 showDueDates: config.showDueDates,
                 showPriorities: config.showPriorities,
-                toggleRead: { viewModel.toggleRead(id: book.id) },
-                onSelect: { onSelectBook?(book.id) }
+                toggleRead: { viewModel.toggleRead(id: book.id) }
             )
+            .onTapGesture(count: 2) {
+                onSelectBook?(book.id)
+            }
             .contextMenu {
                 Button("Eliminar libro") {
                     viewModel.removeBook(id: book.id)

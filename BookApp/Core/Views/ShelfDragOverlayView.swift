@@ -329,6 +329,8 @@ struct ShelfDragOverlayView: View {
                 context.setLineWidth(1.5)
                 context.stroke()
             }
+
+            drawWindowsSpineTitle(b, bx: bx, by: by, width: geom.width, height: slotHeight, in: context)
         }
 #endif
 #endif
@@ -395,7 +397,55 @@ struct ShelfDragOverlayView: View {
         context.setLineWidth(2)
         context.rectangle(x: fx, y: fy, width: geom.width, height: slotHeight)
         context.stroke()
+#if os(Windows)
+        context.setColor(r: 1.0, g: 1.0, b: 1.0, a: drag.book.isRead ? 0.95 : 0.45)
+        context.arc(centerX: fx + geom.width / 2.0, centerY: fy + 12.0, radius: 4.0)
+        if drag.book.isRead {
+            context.fill()
+        } else {
+            context.setLineWidth(1.5)
+            context.stroke()
+        }
+        drawWindowsSpineTitle(drag.book, bx: fx, by: fy, width: geom.width, height: slotHeight, opacity: 0.96, in: context)
+#endif
 #endif
     }
+
+#if os(Windows)
+    private func drawWindowsSpineTitle(
+        _ book: Book,
+        bx: Double,
+        by: Double,
+        width: Double,
+        height: Double,
+        opacity: Double = 1.0,
+        in context: DrawingContext
+    ) {
+        let innerWidth = max(14.0, width - 6.0)
+        let topOffset = 20.0
+        let bottomPadding = 6.0
+        let titleLength = max(24.0, height - topOffset - bottomPadding)
+        let titleLines = width < 38.0 ? 1 : 2
+        let cx = bx + width / 2.0
+        let cy = by + topOffset + titleLength / 2.0
+
+        context.save()
+        context.translate(x: cx, y: cy)
+        context.rotate(-.pi / 2.0)
+        context.setColor(r: 1.0, g: 1.0, b: 1.0, a: opacity)
+        context.drawText(
+            book.title,
+            x: -titleLength / 2.0,
+            y: -innerWidth / 2.0,
+            width: titleLength,
+            height: innerWidth,
+            fontSize: 12,
+            alignment: .center,
+            lineLimit: titleLines,
+            strikethrough: book.isRead
+        )
+        context.restore()
+    }
+#endif
 #endif
 }
